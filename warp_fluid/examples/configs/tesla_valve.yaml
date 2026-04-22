@@ -1,0 +1,29 @@
+nx: 320
+ny: 160
+dx: 1.0
+dy: 1.0
+
+center: [160.0, 80.0]
+d0: 12.0
+d1: 36.0
+d2: 12.0
+theta: 0.61
+num_units: 2
+inflow: [1.0, 0.0]
+
+viscosity: 0.001
+dt: 0.5
+steps: 120
+pressure_iterations: 160
+solver_method: jacobi
+device: cuda:0
+
+video:
+  enabled: true
+  path: outputs/tesla_valve/tesla_valve.mp4
+  fps: 24
+  dpi: 120
+  every: 1
+  field: speed
+  cmap: viridis
+  bitrate: 2400

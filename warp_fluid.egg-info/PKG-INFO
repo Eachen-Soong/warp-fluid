@@ -1,0 +1,130 @@
+Metadata-Version: 2.4
+Name: warp-fluid
+Version: 0.1.0
+Summary: Warp-based 2D fluid simulation toolkit.
+Requires-Python: >=3.10
+Description-Content-Type: text/markdown
+Requires-Dist: numpy
+Requires-Dist: pyyaml
+Requires-Dist: warp-lang
+Provides-Extra: examples
+Requires-Dist: matplotlib; extra == "examples"
+Provides-Extra: test
+Requires-Dist: pytest; extra == "test"
+
+# warp_fluid
+
+`warp_fluid` is a Warp-based fluid simulation library for lightweight 2D Eulerian experiments.
+It focuses on MAC-grid workflows, level-set obstacles, and matrix-free pressure solves built directly on `warp-lang`.
+
+## Features
+
+- 2D Cartesian grid and field data structures
+- Level-set geometry helpers for obstacles
+- Advection, diffusion, and incompressibility operators
+- Matrix-free iterative linear solvers for pressure projection
+- Packaged example entry points for cylinder flow and Tesla valve flow
+
+## Installation
+
+From the repository root:
+
+```bash
+pip install -e .
+```
+
+Core dependencies are installed automatically:
+
+- `warp-lang`
+- `numpy`
+- `pyyaml`
+
+If you want video export for the examples, install the optional extras:
+
+```bash
+pip install -e ".[examples]"
+```
+
+## Quick Start
+
+Import the library:
+
+```python
+from warp_fluid import GridSpec, LinearSolveConfig, make_incompressible
+```
+
+Run packaged examples as modules:
+
+```bash
+python -m warp_fluid.examples.cylinder_flow
+python -m warp_fluid.examples.tesla_valve
+```
+
+Or use the installed console scripts:
+
+```bash
+warp-fluid-cylinder-flow
+warp-fluid-tesla-valve
+```
+
+## Minimal API
+
+```python
+from warp_fluid import GridSpec, LinearSolveConfig, make_incompressible
+from warp_fluid.core import CenteredField, MACField, SolidMask, VelocityBoundary
+
+velocity, pressure, stats = make_incompressible(
+    velocity,
+    solid=solid,
+    pressure=pressure,
+    solve_config=LinearSolveConfig(method="CG"),
+    boundary=boundary,
+)
+```
+
+The low-level linear solver is also available directly:
+
+```python
+from warp_fluid import LinearSolveConfig, solve_linear
+
+solution, stats = solve_linear(operator, rhs, LinearSolveConfig(method="CG"))
+```
+
+## Example Configuration
+
+The example YAML files are installed with the package under `warp_fluid/examples/configs/`.
+
+Module entry points use those defaults automatically:
+
+```bash
+python -m warp_fluid.examples.cylinder_flow --solver-method CG
+python -m warp_fluid.examples.tesla_valve --solver-method biCG-stab
+```
+
+Useful shared config keys:
+
+- `pressure_iterations`
+- `solver_method`
+- `device`
+- `video.enabled`
+- `video.path`
+
+## Repository Layout
+
+```text
+warp_fluid/
+  core/        Grid, field, and boundary data structures
+  geom/        Level-set geometry helpers
+  ops/         Differential operators, interpolation, and masking
+  physics/     Advection, forcing, and incompressibility projection
+  solver/      Iterative linear solvers
+  examples/    Packaged demos and YAML configs
+```
+
+## Testing
+
+```bash
+pytest -q warp_fluid/solver/test_optimize.py
+pytest -q warp_fluid/ops/test_mask.py
+pytest -q warp_fluid/geom/levelset_grid/test_levelset.py
+```

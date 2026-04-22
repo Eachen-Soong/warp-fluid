@@ -1,0 +1,26 @@
+nx: 192
+ny: 96
+lx: 200.0
+ly: 100.0
+
+cylinder_center: [50.0, 40.0]
+cylinder_radius: 5.0
+inflow: [1.0, 0.0]
+
+viscosity: 0.0001
+dt: 0.5
+steps: 800
+pressure_iterations: 160
+solver_method: CG
+obstacle_thickness: 0.0
+device: cuda:0
+
+video:
+  enabled: true
+  path: outputs/cylinder_flow/cylinder_flow.mp4
+  fps: 24
+  dpi: 120
+  every: 1
+  field: speed
+  cmap: viridis
+  bitrate: 2400

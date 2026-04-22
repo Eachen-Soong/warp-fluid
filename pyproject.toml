@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "warp-fluid"
+version = "0.1.0"
+description = "Warp-based 2D fluid simulation toolkit."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "numpy",
+    "pyyaml",
+    "warp-lang",
+]
+
+[project.optional-dependencies]
+examples = ["matplotlib"]
+test = ["pytest"]
+
+[project.scripts]
+warp-fluid-cylinder-flow = "warp_fluid.examples.cylinder_flow:main"
+warp-fluid-tesla-valve = "warp_fluid.examples.tesla_valve:main"
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+include = ["warp_fluid*"]
+
+[tool.setuptools.package-data]
+"warp_fluid.examples" = ["configs/*.yaml"]
