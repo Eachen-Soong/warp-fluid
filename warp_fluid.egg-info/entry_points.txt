@@ -1,3 +1,0 @@
-[console_scripts]
-warp-fluid-cylinder-flow = warp_fluid.examples.cylinder_flow:main
-warp-fluid-tesla-valve = warp_fluid.examples.tesla_valve:main

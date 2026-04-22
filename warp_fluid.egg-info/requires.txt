@@ -1,9 +1,0 @@
-numpy
-pyyaml
-warp-lang
-
-[examples]
-matplotlib
-
-[test]
-pytest
