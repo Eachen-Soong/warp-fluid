@@ -1,0 +1,26 @@
+nx: 256
+ny: 128
+lx: 12.0
+ly: 6.0
+airfoil_code: "2412"
+chord: 1.5
+leading_edge: [3.0, 3.0]
+angle_of_attack_deg: 5.0
+inflow_speed: 1.0
+viscosity: 0.001
+dt: 0.02
+steps: 300
+pressure_iterations: 160
+solver_method: jacobi
+obstacle_thickness: 0.0
+airfoil_samples: 256
+closed_trailing_edge: true
+video:
+  enabled: false
+  path: outputs/naca_airfoil/naca_airfoil.mp4
+  fps: 24
+  dpi: 120
+  every: 2
+  field: speed
+  cmap: viridis
+  bitrate: 2400

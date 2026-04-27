@@ -1,0 +1,36 @@
+nx: 256
+ny: 128
+lx: 12.0
+ly: 6.0
+airfoil_code: "2412"
+chord: 1.5
+leading_edge: [3.0, 3.0]
+airfoil_angle_deg: 0.0
+mach: 0.3
+static_pressure: 101325.0
+static_temperature: 288.15
+angle_of_attack_deg: 4.0
+reynolds_number: 1000000.0
+turbulence_intensity: 0.01
+turbulent_viscosity_ratio: 10.0
+pseudo_steps: 250
+cfl: 1.2
+simple_iterations: 3
+pressure_correction_iterations: 40
+velocity_relaxation: 0.6
+pressure_relaxation: 0.25
+temperature_relaxation: 0.5
+turbulence_relaxation: 0.35
+pressure_velocity_coupling: SIMPLE
+turbulence_model: sst_k_omega
+convection_scheme: second_order_upwind
+pressure_linear_solver: SOR
+pressure_sor_omega: 1.6
+pressure_correction_tolerance: 1.0e-5
+pressure_pcg_max_iterations: 200
+outlet_static_pressure: 101325.0
+wall_temperature:
+convergence_tolerance: 5.0e-4
+force_coefficient_tolerance: 1.0e-4
+convergence_window: 5
+output_npz: outputs/naca_pressure_based/final_state.npz

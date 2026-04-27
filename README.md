@@ -2,6 +2,7 @@
 
 `warp_fluid` is a Warp-based fluid simulation library for lightweight 2D Eulerian experiments.
 It focuses on MAC-grid workflows, level-set obstacles, and matrix-free pressure solves built directly on `warp-lang`.
+It now also includes an experimental 2D pressure-based compressible solver for NACA airfoil cases with `SIMPLE`, second-order upwind convection, and an SST `k-omega` closure.
 
 ## Features
 
@@ -9,7 +10,7 @@ It focuses on MAC-grid workflows, level-set obstacles, and matrix-free pressure 
 - Level-set geometry helpers for obstacles
 - Advection, diffusion, and incompressibility operators
 - Matrix-free iterative linear solvers for pressure projection
-- Packaged example entry points for cylinder flow and Tesla valve flow
+- Packaged example entry points for cylinder flow, incompressible NACA airfoil flow, pressure-based compressible NACA airfoil flow, and Tesla valve flow
 
 ## Installation
 
@@ -43,6 +44,8 @@ Run packaged examples as modules:
 
 ```bash
 python -m warp_fluid.examples.cylinder_flow
+python -m warp_fluid.examples.naca_airfoil
+python -m warp_fluid.examples.naca_pressure_based
 python -m warp_fluid.examples.tesla_valve
 ```
 
@@ -50,6 +53,8 @@ Or use the installed console scripts:
 
 ```bash
 warp-fluid-cylinder-flow
+warp-fluid-naca-airfoil
+warp-fluid-naca-pressure-based
 warp-fluid-tesla-valve
 ```
 
@@ -84,6 +89,8 @@ Module entry points use those defaults automatically:
 
 ```bash
 python -m warp_fluid.examples.cylinder_flow --solver-method CG
+python -m warp_fluid.examples.naca_airfoil --solver-method CG
+python -m warp_fluid.examples.naca_pressure_based
 python -m warp_fluid.examples.tesla_valve --solver-method biCG-stab
 ```
 
@@ -106,6 +113,28 @@ warp_fluid/
   solver/      Iterative linear solvers
   examples/    Packaged demos and YAML configs
 ```
+
+## NACA Airfoil Examples
+
+`warp_fluid` now includes a NACA 4-digit airfoil level-set generator plus two packaged airfoil examples:
+
+- `naca_airfoil`: incompressible MAC-grid projection flow with an airfoil obstacle and angled inflow
+- `naca_pressure_based`: experimental compressible pressure-based flow with `SIMPLE`, second-order upwind convection, and SST `k-omega`
+
+The pressure-based solver is intentionally isolated from the older incompressible path. It is currently:
+
+- 2D only
+- steady/pseudo-time experimental rather than production-grade CFD
+- based on a collocated finite-volume style update implemented in NumPy for flexibility
+- includes west/top/bottom farfield conditions, an east pressure outlet, and solid-wall turbulence/temperature boundary handling
+- reports `CD`, `CL`, `CM`, pressure-correction residuals, and normalized convergence histories in the output `npz`
+- defaults to face-flux correction plus `SOR` for pressure correction; a matrix-free diagonal-preconditioned `PCG` path is available as an experimental option
+
+It does not yet implement:
+
+- multigrid or robust industrial-grade linear algebra
+- wall functions, transition modeling, or force coefficient post-processing
+- cut-cell geometry handling around the airfoil body
 
 ## Testing
 

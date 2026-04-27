@@ -38,6 +38,29 @@ def _jacobi_update_kernel(
 
 
 @wp.kernel
+def _jacobi_update_kernel_3d(
+    x: wp.array3d(dtype=wp.float32),
+    ax: wp.array3d(dtype=wp.float32),
+    rhs: wp.array3d(dtype=wp.float32),
+    diagonal: wp.array3d(dtype=wp.float32),
+    x_next: wp.array3d(dtype=wp.float32),
+    nx: int,
+    ny: int,
+    nz: int,
+    omega: float,
+):
+    i, j, k = wp.tid()
+    if i >= nx or j >= ny or k >= nz:
+        return
+    diag = diagonal[i, j, k]
+    if wp.abs(diag) <= 1.0e-6:
+        x_next[i, j, k] = x[i, j, k]
+        return
+    correction = (rhs[i, j, k] - ax[i, j, k]) / diag
+    x_next[i, j, k] = x[i, j, k] + omega * correction
+
+
+@wp.kernel
 def _axpy_kernel(
     dst: wp.array2d(dtype=wp.float32),
     src: wp.array2d(dtype=wp.float32),

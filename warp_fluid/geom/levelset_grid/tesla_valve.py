@@ -472,4 +472,116 @@ def tesla_valve_levelset(
     return -fluid_phi
 
 
-__all__ = ["tesla_valve_fluid_levelset", "tesla_valve_levelset"]
+def extrude_levelset_to_3d(
+    levelset_2d: np.ndarray,
+    *,
+    nz: int,
+    dz: float,
+    center_z: float,
+    depth: float,
+    origin_z: float = 0.0,
+    inside_negative: bool = True,
+) -> np.ndarray:
+    """Extrude a 2D signed-distance field into a finite-thickness 3D slab."""
+
+    if nz < 1:
+        raise ValueError("nz must be positive.")
+    if dz <= 0.0:
+        raise ValueError("dz must be positive.")
+    if depth <= 0.0:
+        raise ValueError("depth must be positive.")
+    base = np.asarray(levelset_2d, dtype=np.float32)
+    if base.ndim != 2:
+        raise ValueError("Expected a 2D levelset to extrude.")
+    z = origin_z + (np.arange(nz, dtype=np.float32) + 0.5) * float(dz)
+    slab_phi = np.abs(z - float(center_z)) - 0.5 * float(depth)
+    slab_phi = slab_phi.reshape((1, 1, nz))
+    if inside_negative:
+        return np.maximum(base[..., None], slab_phi).astype(np.float32, copy=False)
+    return np.minimum(base[..., None], -slab_phi).astype(np.float32, copy=False)
+
+
+def tesla_valve_fluid_levelset_3d(
+    grid,
+    center: Tuple[float, float, float],
+    d0: float,
+    d1: float,
+    d2: float,
+    theta: float,
+    *,
+    depth: float,
+    num_units: int = 1,
+    arc_segments: int = 96,
+    include_end_pipes: bool = False,
+    dx: float = None,
+    dy: float = None,
+) -> np.ndarray:
+    """Extruded 3D Tesla-valve fluid signed-distance field."""
+
+    if not hasattr(grid, "nz") or grid.nz is None:
+        raise ValueError("tesla_valve_fluid_levelset_3d expects a 3D grid.")
+    fluid_2d = tesla_valve_fluid_levelset(
+        (grid.nx, grid.ny, grid.dx if dx is None else dx, grid.dy if dy is None else dy),
+        center=(float(center[0]), float(center[1])),
+        d0=d0,
+        d1=d1,
+        d2=d2,
+        theta=theta,
+        num_units=num_units,
+        arc_segments=arc_segments,
+        include_end_pipes=include_end_pipes,
+        dx=dx,
+        dy=dy,
+    )
+    return extrude_levelset_to_3d(
+        fluid_2d,
+        nz=int(grid.nz),
+        dz=float(grid.dz),
+        center_z=float(center[2]),
+        depth=float(depth),
+        origin_z=float(grid.z0),
+        inside_negative=True,
+    )
+
+
+def tesla_valve_levelset_3d(
+    grid,
+    center: Tuple[float, float, float],
+    d0: float,
+    d1: float,
+    d2: float,
+    theta: float,
+    *,
+    depth: float,
+    num_units: int = 1,
+    arc_segments: int = 96,
+    include_end_pipes: bool = False,
+    dx: float = None,
+    dy: float = None,
+) -> np.ndarray:
+    """Extruded 3D Tesla-valve solid signed-distance field."""
+
+    fluid_phi = tesla_valve_fluid_levelset_3d(
+        grid,
+        center,
+        d0,
+        d1,
+        d2,
+        theta,
+        depth=depth,
+        num_units=num_units,
+        arc_segments=arc_segments,
+        include_end_pipes=include_end_pipes,
+        dx=dx,
+        dy=dy,
+    )
+    return -fluid_phi
+
+
+__all__ = [
+    "extrude_levelset_to_3d",
+    "tesla_valve_fluid_levelset",
+    "tesla_valve_fluid_levelset_3d",
+    "tesla_valve_levelset",
+    "tesla_valve_levelset_3d",
+]

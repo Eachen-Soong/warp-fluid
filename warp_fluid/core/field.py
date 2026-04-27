@@ -24,8 +24,9 @@ class CenteredField:
     def __post_init__(self) -> None:
         if hasattr(self.data, "shape"):
             shape = tuple(self.data.shape)
-            if len(shape) < 2 or shape[0] != self.grid.nx or shape[1] != self.grid.ny:
-                raise ValueError(f"CenteredField expects leading shape {(self.grid.nx, self.grid.ny)} but got {shape}")
+            leading = tuple(shape[: self.grid.ndim])
+            if len(shape) < self.grid.ndim or leading != self.grid.shape:
+                raise ValueError(f"CenteredField expects leading shape {self.grid.shape} but got {shape}")
 
     @classmethod
     def zeros(
@@ -59,17 +60,25 @@ class CenteredField:
 
 @dataclass
 class MACField:
-    """Velocity field on a 2D MAC grid."""
+    """Velocity field on a MAC grid."""
 
     grid: GridSpec
     u: wp.array
     v: wp.array
+    w: Optional[wp.array] = None
 
     def __post_init__(self) -> None:
         if hasattr(self.u, "shape"):
             _ensure_shape(tuple(self.u.shape), self.grid.shape_u, "u")
         if hasattr(self.v, "shape"):
             _ensure_shape(tuple(self.v.shape), self.grid.shape_v, "v")
+        if self.grid.is_3d:
+            if self.w is None:
+                raise ValueError("3D MACField expects a w component.")
+            if hasattr(self.w, "shape"):
+                _ensure_shape(tuple(self.w.shape), self.grid.shape_w, "w")
+        elif self.w is not None:
+            raise ValueError("2D MACField must not define a w component.")
 
     @classmethod
     def zeros(
@@ -84,6 +93,11 @@ class MACField:
             grid=grid,
             u=wp.zeros(grid.shape_u, dtype=wp.float32, device=device, requires_grad=requires_grad),
             v=wp.zeros(grid.shape_v, dtype=wp.float32, device=device, requires_grad=requires_grad),
+            w=(
+                wp.zeros(grid.shape_w, dtype=wp.float32, device=device, requires_grad=requires_grad)
+                if grid.is_3d
+                else None
+            ),
         )
 
     @classmethod
@@ -92,6 +106,7 @@ class MACField:
         grid: GridSpec,
         u: np.ndarray,
         v: np.ndarray,
+        w: Optional[np.ndarray] = None,
         *,
         device: Optional[str] = None,
         requires_grad: bool = False,
@@ -101,14 +116,31 @@ class MACField:
         v_arr = np.asarray(v, dtype=np.float32)
         _ensure_shape(tuple(u_arr.shape), grid.shape_u, "u")
         _ensure_shape(tuple(v_arr.shape), grid.shape_v, "v")
+        if grid.is_3d:
+            if w is None:
+                raise ValueError("3D grids require a w-face array.")
+            w_arr = np.asarray(w, dtype=np.float32)
+            _ensure_shape(tuple(w_arr.shape), grid.shape_w, "w")
+        else:
+            if w is not None:
+                raise ValueError("2D grids must not pass a w-face array.")
+            w_arr = None
         return cls(
             grid=grid,
             u=wp.array(u_arr, dtype=wp.float32, device=device, requires_grad=requires_grad),
             v=wp.array(v_arr, dtype=wp.float32, device=device, requires_grad=requires_grad),
+            w=(
+                wp.array(w_arr, dtype=wp.float32, device=device, requires_grad=requires_grad)
+                if w_arr is not None
+                else None
+            ),
         )
 
-    def numpy(self) -> tuple[np.ndarray, np.ndarray]:
-        return (
+    def numpy(self) -> tuple[np.ndarray, ...]:
+        values = [
             np.asarray(self.u.numpy(), dtype=np.float32),
             np.asarray(self.v.numpy(), dtype=np.float32),
-        )
+        ]
+        if self.w is not None:
+            values.append(np.asarray(self.w.numpy(), dtype=np.float32))
+        return tuple(values)

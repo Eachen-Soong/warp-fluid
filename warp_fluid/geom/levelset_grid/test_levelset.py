@@ -4,6 +4,7 @@ import math
 
 import numpy as np
 
+from .airfoil import naca4_airfoil_levelset, naca4_airfoil_polygon
 from .tesla_valve import tesla_valve_fluid_levelset, tesla_valve_levelset
 
 
@@ -90,3 +91,45 @@ def test_tesla_valve_end_pipes_reject_negative_pipe_length() -> None:
         assert "negative" in str(exc)
     else:
         raise AssertionError("Expected a negative end-pipe length to raise ValueError.")
+
+
+def test_naca4_airfoil_polygon_spans_expected_chord() -> None:
+    polygon = naca4_airfoil_polygon("2412", chord=1.5, leading_edge=(2.0, 3.0), samples=128)
+
+    assert polygon.shape[1] == 2
+    assert np.isclose(float(np.min(polygon[:, 0])), 2.0, atol=2.0e-3)
+    assert np.isclose(float(np.max(polygon[:, 0])), 3.5, atol=2.0e-3)
+
+
+def test_naca4_airfoil_levelset_marks_airfoil_interior() -> None:
+    grid = (320, 160, 0.02, 0.02)
+    levelset = naca4_airfoil_levelset(
+        grid,
+        "0012",
+        chord=1.0,
+        leading_edge=(2.0, 1.6),
+        samples=256,
+    )
+
+    assert np.any(levelset < 0.0)
+    mid_i = int((2.3 / 0.02) - 0.5)
+    mid_j = int((1.6 / 0.02) - 0.5)
+    far_i = int((0.5 / 0.02) - 0.5)
+    far_j = int((0.5 / 0.02) - 0.5)
+    assert levelset[mid_i, mid_j] < 0.0
+    assert levelset[far_i, far_j] > 0.0
+
+
+def test_naca4_airfoil_rotation_changes_vertical_extent() -> None:
+    base = naca4_airfoil_polygon("0012", chord=1.0, leading_edge=(0.0, 0.0), angle=0.0, samples=128)
+    rotated = naca4_airfoil_polygon(
+        "0012",
+        chord=1.0,
+        leading_edge=(0.0, 0.0),
+        angle=math.radians(12.0),
+        samples=128,
+    )
+
+    base_height = float(np.max(base[:, 1]) - np.min(base[:, 1]))
+    rotated_height = float(np.max(rotated[:, 1]) - np.min(rotated[:, 1]))
+    assert rotated_height > base_height
