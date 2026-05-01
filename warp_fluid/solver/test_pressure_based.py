@@ -4,7 +4,7 @@ import numpy as np
 
 from ..core.grid import GridSpec
 from ..geom.levelset_grid.airfoil import naca4_airfoil_levelset
-from .pressure_based import FreestreamCondition, PressureBasedSolverConfig, run_pressure_based_solver
+from .pressure_based_np import FreestreamCondition, PressureBasedSolverConfig, run_pressure_based_solver
 
 
 def test_pressure_based_config_rejects_unknown_scheme() -> None:

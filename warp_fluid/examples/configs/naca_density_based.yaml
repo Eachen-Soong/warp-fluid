@@ -1,0 +1,25 @@
+nx: 512
+ny: 256
+lx: 12.0
+ly: 6.0
+airfoil_code: "2412"
+chord: 1.5
+leading_edge: [3.0, 3.0]
+airfoil_angle_deg: 0.0
+mach: 0.3
+static_pressure: 101325.0
+static_temperature: 288.15
+angle_of_attack_deg: 4.0
+reynolds_number: 1000000.0
+turbulence_intensity: 0.0
+turbulent_viscosity_ratio: 1.0
+pseudo_steps: 4000
+cfl: 0.35
+dt_safety: 0.7
+min_fluid_fraction: 0.2
+max_velocity_factor: 6.0
+convergence_tolerance: 1.0e-4
+force_coefficient_tolerance: 1.0e-4
+convergence_window: 10
+device: cuda:0
+output_npz: outputs/naca_density_based/final_state.npz

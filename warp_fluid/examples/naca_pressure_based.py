@@ -16,11 +16,11 @@ if __package__ in {None, ""}:
 
 from warp_fluid.core import GridSpec
 from warp_fluid.geom.levelset_grid import naca4_airfoil_levelset
-from warp_fluid.solver.pressure_based import (
+from warp_fluid.solver.pressure_based_np import (
     FreestreamCondition,
     PressureBasedSolverConfig,
-    run_pressure_based_solver,
 )
+from warp_fluid.solver.pressure_based_wp import run_pressure_based_solver_warp
 
 
 DEFAULT_CONFIG_PATH = Path(__file__).with_name("configs") / "naca_pressure_based.yaml"
@@ -63,6 +63,7 @@ class NACAPressureBasedConfig:
     convergence_tolerance: float = 5.0e-4
     force_coefficient_tolerance: float = 1.0e-4
     convergence_window: int = 5
+    device: Optional[str] = None
     output_npz: Optional[str] = "outputs/naca_pressure_based/final_state.npz"
 
     def __post_init__(self) -> None:
@@ -129,6 +130,7 @@ def config_from_mapping(data: Mapping[str, Any]) -> NACAPressureBasedConfig:
         "convergence_tolerance",
         "force_coefficient_tolerance",
         "convergence_window",
+        "device",
         "output_npz",
     }
     if unknown:
@@ -187,6 +189,7 @@ def config_from_mapping(data: Mapping[str, Any]) -> NACAPressureBasedConfig:
             values.get("force_coefficient_tolerance", NACAPressureBasedConfig.force_coefficient_tolerance)
         ),
         convergence_window=int(values.get("convergence_window", NACAPressureBasedConfig.convergence_window)),
+        device=values.get("device", NACAPressureBasedConfig.device),
         output_npz=values.get("output_npz", NACAPressureBasedConfig.output_npz),
     )
 
@@ -196,9 +199,9 @@ def load_config(path: Union[str, Path] = DEFAULT_CONFIG_PATH) -> NACAPressureBas
     return config_from_mapping(_load_yaml_mapping(config_path))
 
 
-def run_naca_pressure_based(
-    config: NACAPressureBasedConfig = NACAPressureBasedConfig(),
-) -> tuple[object, list[object]]:
+def build_naca_grid_and_levelset(
+    config: NACAPressureBasedConfig,
+) -> tuple[GridSpec, np.ndarray]:
     grid = GridSpec.from_extent(config.nx, config.ny, config.lx, config.ly)
     obstacle_sdf = naca4_airfoil_levelset(
         grid,
@@ -208,6 +211,13 @@ def run_naca_pressure_based(
         angle=math.radians(config.airfoil_angle_deg),
         samples=256,
     )
+    return grid, obstacle_sdf
+
+
+def build_naca_solver_inputs(
+    config: NACAPressureBasedConfig,
+) -> tuple[GridSpec, np.ndarray, FreestreamCondition, PressureBasedSolverConfig]:
+    grid, obstacle_sdf = build_naca_grid_and_levelset(config)
     freestream = FreestreamCondition(
         mach=config.mach,
         static_pressure=config.static_pressure,
@@ -239,35 +249,42 @@ def run_naca_pressure_based(
         force_coefficient_tolerance=config.force_coefficient_tolerance,
         convergence_window=config.convergence_window,
     )
-    state, history = run_pressure_based_solver(
-        grid,
-        obstacle_sdf,
-        chord=config.chord,
-        freestream=freestream,
-        config=solver,
-    )
-    if config.output_npz:
-        output_path = Path(config.output_npz).expanduser()
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        sound = np.sqrt(solver.gamma * solver.gas_constant * state.temperature)
-        speed = np.sqrt(state.u * state.u + state.v * state.v)
-        rho_inf = freestream.static_pressure / (solver.gas_constant * freestream.static_temperature)
-        u_inf = freestream.mach * math.sqrt(solver.gamma * solver.gas_constant * freestream.static_temperature)
-        dynamic_pressure = 0.5 * rho_inf * u_inf * u_inf
-        cp = (state.pressure - freestream.static_pressure) / max(dynamic_pressure, 1.0e-6)
-        np.savez_compressed(
-            output_path,
-            density=state.density.astype(np.float32),
-            u=state.u.astype(np.float32),
-            v=state.v.astype(np.float32),
-            pressure=state.pressure.astype(np.float32),
-            temperature=state.temperature.astype(np.float32),
-            k=state.turbulent_kinetic_energy.astype(np.float32),
-            omega=state.specific_dissipation.astype(np.float32),
-            mu_t=state.turbulent_viscosity.astype(np.float32),
-            mach=(speed / np.maximum(sound, 1.0e-6)).astype(np.float32),
-            cp=cp.astype(np.float32),
-            fluid=state.fluid.astype(np.float32),
+    return grid, obstacle_sdf, freestream, solver
+
+
+def write_naca_snapshot_npz(
+    output_path: Union[str, Path],
+    state,
+    *,
+    freestream: FreestreamCondition,
+    solver: PressureBasedSolverConfig,
+    history: Optional[list[object]] = None,
+) -> None:
+    path = Path(output_path).expanduser()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    sound = np.sqrt(solver.gamma * solver.gas_constant * state.temperature)
+    speed = np.sqrt(state.u * state.u + state.v * state.v)
+    rho_inf = freestream.static_pressure / (solver.gas_constant * freestream.static_temperature)
+    u_inf = freestream.mach * math.sqrt(solver.gamma * solver.gas_constant * freestream.static_temperature)
+    dynamic_pressure = 0.5 * rho_inf * u_inf * u_inf
+    cp = (state.pressure - freestream.static_pressure) / max(dynamic_pressure, 1.0e-6)
+    arrays: dict[str, np.ndarray] = {
+        "density": state.density.astype(np.float32),
+        "u": state.u.astype(np.float32),
+        "v": state.v.astype(np.float32),
+        "pressure": state.pressure.astype(np.float32),
+        "temperature": state.temperature.astype(np.float32),
+        "k": state.turbulent_kinetic_energy.astype(np.float32),
+        "omega": state.specific_dissipation.astype(np.float32),
+        "mu_t": state.turbulent_viscosity.astype(np.float32),
+        "mach": (speed / np.maximum(sound, 1.0e-6)).astype(np.float32),
+        "cp": cp.astype(np.float32),
+        "fluid": state.fluid.astype(np.float32),
+        "fluid_fraction": state.fluid_fraction.astype(np.float32),
+        "solid_levelset": state.solid_levelset.astype(np.float32),
+    }
+    if history is not None:
+        arrays.update(
             residual_step=np.asarray([item.step for item in history], dtype=np.int32),
             residual_mass=np.asarray([item.mass for item in history], dtype=np.float32),
             residual_momentum=np.asarray([item.momentum for item in history], dtype=np.float32),
@@ -283,6 +300,24 @@ def run_naca_pressure_based(
             moment_coefficient=np.asarray([item.moment_coefficient for item in history], dtype=np.float32),
             force_delta=np.asarray([item.force_delta for item in history], dtype=np.float32),
         )
+    np.savez_compressed(path, **arrays)
+
+
+def run_naca_pressure_based(
+    config: NACAPressureBasedConfig = NACAPressureBasedConfig(),
+) -> tuple[object, list[object]]:
+    grid, obstacle_sdf, freestream, solver = build_naca_solver_inputs(config)
+    warp_state, history = run_pressure_based_solver_warp(
+        grid,
+        obstacle_sdf,
+        chord=config.chord,
+        freestream=freestream,
+        config=solver,
+        device=config.device,
+    )
+    state = warp_state.to_numpy_state()
+    if config.output_npz:
+        write_naca_snapshot_npz(config.output_npz, state, freestream=freestream, solver=solver, history=history)
     return state, history
 
 
@@ -333,6 +368,7 @@ def main(argv: Optional[list[str]] = None) -> int:
             convergence_tolerance=config.convergence_tolerance,
             force_coefficient_tolerance=config.force_coefficient_tolerance,
             convergence_window=config.convergence_window,
+            device=config.device,
             output_npz=args.output_npz,
         )
     state, history = run_naca_pressure_based(config)
