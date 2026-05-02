@@ -1,5 +1,0 @@
-[console_scripts]
-warp-fluid-cylinder-flow = warp_fluid.examples.cylinder_flow:main
-warp-fluid-naca-airfoil = warp_fluid.examples.naca_airfoil:main
-warp-fluid-naca-pressure-based = warp_fluid.examples.naca_pressure_based:main
-warp-fluid-tesla-valve = warp_fluid.examples.tesla_valve:main
